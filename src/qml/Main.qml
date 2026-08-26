@@ -42,6 +42,19 @@ Rectangle {
         readonly property var backend: (typeof logos !== "undefined" && logos) ? logos.module(mod) : null
         readonly property bool ready: backend !== null
 
+        // The module's own network table. Parsed defensively: the property is
+        // empty until the fetch returns, and a view that throws here renders
+        // nothing at all.
+        readonly property var networks: {
+            if (!ready || !backend.networksJson) return []
+            try { return JSON.parse(backend.networksJson) } catch (e) { return [] }
+        }
+        function profileFor(name) {
+            for (var i = 0; i < networks.length; ++i)
+                if (networks[i].name === name) return networks[i]
+            return null
+        }
+
         function stateColour(s) {
             if (s === "running")  return Theme.palette.success
             if (s === "degraded") return Theme.palette.warning
@@ -167,24 +180,42 @@ Rectangle {
                         LogosComboBox {
                             id: networkBox
                             Layout.fillWidth: true
-                            // Exactly the three the library supports. Anything
-                            // else reaches a quit() inside Nim and would take
-                            // the whole host process down, so this is a
-                            // dropdown rather than a text field on purpose.
-                            model: ["sepolia", "mainnet", "hoodi"]
+                            // Straight from the module's whitelist. Hardcoding
+                            // it here would be a crash waiting to happen:
+                            // `network` is a value that reaches a quit() inside
+                            // Nim when upstream does not recognise it, taking
+                            // the whole host process down, so this list must
+                            // never be able to drift from the module's.
+                            model: d.networks.map(function(n) { return n.name })
 
-                            // A trusted block root identifies a block on ONE
-                            // chain: carrying it across a network change builds
-                            // a config that cannot bootstrap, and whose failure
-                            // arrives long after the change that caused it.
-                            // Empty is honest; the operator refetches.
+                            // Every field on this row is chain-specific: a
+                            // trusted root names a block on ONE chain, and a
+                            // beacon or execution URL serves ONE chain. Carrying
+                            // any of them across a network change builds a config
+                            // that cannot bootstrap, and whose failure arrives
+                            // long after the change that caused it.
                             property string appliedNetwork: ""
                             onCurrentTextChanged: {
-                                if (appliedNetwork !== "" && currentText !== appliedNetwork
-                                        && rootField.text !== "") {
+                                if (currentText === "") return
+                                var p = d.profileFor(currentText)
+                                var changed = appliedNetwork !== "" && currentText !== appliedNetwork
+
+                                if (changed) {
                                     rootField.text = ""
+                                    // Overwrite rather than merge, and CLEAR when
+                                    // the module offers no default — leaving the
+                                    // previous chain's URLs in place is exactly
+                                    // the mismatch this is here to prevent.
+                                    beaconField.text = p ? p.beaconApiUrl : ""
+                                    execField.text   = p ? p.executionApiUrl : ""
                                     logView.append("network → " + currentText
-                                        + ": trusted root cleared, it is chain-specific")
+                                        + (p && p.beaconApiUrl
+                                           ? ": endpoints set to the defaults, trusted root cleared"
+                                           : ": no default endpoints for this network — set them yourself"))
+                                } else if (appliedNetwork === "" && p) {
+                                    // First population, once the module answers.
+                                    beaconField.text = p.beaconApiUrl
+                                    execField.text   = p.executionApiUrl
                                 }
                                 appliedNetwork = currentText
                             }
@@ -194,7 +225,9 @@ Rectangle {
                         LogosTextField {
                             id: beaconField
                             Layout.fillWidth: true
-                            text: "https://lodestar-sepolia.chainsafe.io"
+                            // No hardcoded default: it comes from the module's
+                            // network table, which is where the verified pairs
+                            // live.
                             placeholderText: "https://…  (must serve the light-client REST API)"
                         }
 
@@ -202,7 +235,6 @@ Rectangle {
                         LogosTextField {
                             id: execField
                             Layout.fillWidth: true
-                            text: "https://ethereum-sepolia-rpc.publicnode.com"
                             placeholderText: "https:// or wss://  (must support eth_getProof)"
                         }
 
@@ -275,6 +307,7 @@ Rectangle {
                             text: "Configure"
                             variant: LogosButton.Variant.Primary
                             enabled: d.ready && !d.backend.busy && rootField.text.trim() !== ""
+                                     && beaconField.text.trim() !== "" && execField.text.trim() !== ""
                             onClicked: d.backend.configure(root.buildConfig())
                         }
                         LogosButton {

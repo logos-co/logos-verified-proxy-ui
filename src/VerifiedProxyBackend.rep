@@ -23,6 +23,14 @@ class VerifiedProxyBackend
     PROP(QString lastError READONLY)
     PROP(bool busy READONLY)              // a lifecycle call is in flight
 
+    // The module's network table, as a JSON array of
+    // {name, chainId, beaconApiUrl, executionApiUrl}. Fetched once at startup.
+    // The view builds its network selector from THIS rather than a hardcoded
+    // list: `network` is a value that reaches a quit() inside the Nim library
+    // when upstream does not recognise it, so a list that drifts from the
+    // module's whitelist would take the host process down.
+    PROP(QString networksJson READONLY)
+
     PROP(QString configJson READONLY)     // last config we sent, for repopulating the form
     PROP(QString uiVersion READONLY)
 

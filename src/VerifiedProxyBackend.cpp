@@ -51,6 +51,20 @@ void VerifiedProxyBackend::onContextReady() {
     // captured reference would dangle.
     m_logos = new LogosModules(modules().api);
 
+    // Fetch the network table once. It is static for the module's lifetime, so
+    // there is nothing to re-poll.
+    m_logos->verified_proxy_module.supportedNetworksAsyncResult(
+        [this](logos::AsyncResult<QVariantList> r) {
+            if (!r.ok()) {
+                log(QStringLiteral("could not read the module's network list: ")
+                    + describe(r.error));
+                return;
+            }
+            setNetworksJson(QString::fromUtf8(
+                QJsonDocument(QJsonArray::fromVariantList(r.value)).toJson(QJsonDocument::Compact)));
+        },
+        Timeout(kCallTimeoutMs));
+
     m_sinceGoodPoll.start();
     m_pollTimer = new QTimer(this);
     m_pollTimer->setInterval(kPollIntervalMs);
