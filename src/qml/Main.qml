@@ -114,12 +114,51 @@ Rectangle {
         d.backend.fetchFinalizedRoot(base)
     }
 
+    // Repopulate the form from the last applied config. Runs once, and only
+    // once BOTH the network table and the saved config are available — the
+    // table arrives asynchronously and the selector's model is empty until it
+    // does, so restoring earlier would silently drop the network.
+    property bool configRestored: false
+    function restoreConfig() {
+        if (configRestored || !d.ready) return
+        if (d.networks.length === 0) return
+        var raw = d.backend.configJson
+        if (!raw) return
+        var c
+        try { c = JSON.parse(raw) } catch (e) { configRestored = true; return }
+        configRestored = true
+
+        var names = d.networks.map(function(n) { return n.name })
+        var idx = names.indexOf(c.network)
+        if (idx >= 0) {
+            // Set appliedNetwork FIRST so the selector's change handler sees no
+            // change and does not helpfully clear the root we are restoring.
+            networkBox.appliedNetwork = c.network
+            networkBox.currentIndex = idx
+        }
+        if (c.beaconApiUrls && c.beaconApiUrls.length)    beaconField.text = c.beaconApiUrls[0]
+        if (c.executionApiUrls && c.executionApiUrls.length) execField.text = c.executionApiUrls[0]
+        if (c.trustedBlockRoot) rootField.text = c.trustedBlockRoot
+        if (c.keepAlive) {
+            var k = ["interval", "continuous", "off"].indexOf(c.keepAlive)
+            if (k >= 0) keepAliveBox.currentIndex = k
+        }
+        if (c.httpServer) {
+            httpEnabled.checked = !!c.httpServer.enabled
+            if (c.httpServer.port) portField.text = String(c.httpServer.port)
+        }
+        logView.append("restored the last used configuration (" + c.network + ")")
+    }
+    Component.onCompleted: restoreConfig()
+
     Connections {
         target: d.backend
         // Deliberately no logging here. The backend already emits a logLine for
         // every outcome — success from log(), failure from setError() — so
         // appending again here printed each one twice.
         function onLogLine(l)                 { logView.append(l) }
+        function onNetworksJsonChanged()      { root.restoreConfig() }
+        function onConfigJsonChanged()        { root.restoreConfig() }
         function onFinalizedRootFetched(ok, root, error) {
             if (ok) rootField.text = root
         }
@@ -354,6 +393,17 @@ Rectangle {
                             enabled: d.ready && !d.backend.busy && d.backend.running
                             onClicked: d.backend.stop()
                         }
+                        LogosText {
+                            // Start has several preconditions and a disabled
+                            // button explains none of them. The trusted root is
+                            // the one that is routinely empty — changing network
+                            // clears it, because it names a block on one chain.
+                            visible: !d.locked && d.ready && rootField.text.trim() === ""
+                            Layout.alignment: Qt.AlignVCenter
+                            text: "needs a trusted root — press Fetch finalized, or paste one"
+                            color: Theme.palette.textTertiary
+                            font.pixelSize: Theme.typography.secondaryText
+                        }
                         Item { Layout.fillWidth: true }
                         LogosButton {
                             text: "Refresh"
@@ -388,6 +438,19 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         LogosText { text: "State"; font.weight: Theme.typography.weightBold }
+                        LogosText {
+                            // The module keeps running the config it was given,
+                            // so after switching the selector this panel is
+                            // still describing the PREVIOUS chain. Saying so
+                            // beats showing a chain id that contradicts the
+                            // form directly above it.
+                            visible: d.ready && d.backend.configuredNetwork !== ""
+                                     && d.backend.configuredNetwork !== networkBox.currentText
+                            text: "— " + (d.ready ? d.backend.configuredNetwork : "")
+                                  + ", not the selected network"
+                            color: Theme.palette.warning
+                            font.pixelSize: Theme.typography.secondaryText
+                        }
                         Item { Layout.fillWidth: true }
                         LogosText {
                             text: "chain " + (d.ready ? d.backend.chainId : 0)

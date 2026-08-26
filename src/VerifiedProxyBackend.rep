@@ -31,7 +31,17 @@ class VerifiedProxyBackend
     // module's whitelist would take the host process down.
     PROP(QString networksJson READONLY)
 
-    PROP(QString configJson READONLY)     // last config we sent, for repopulating the form
+    // The config the MODULE has stored, fetched once at startup so the form
+    // comes back as it was left. The module owns persistence: it writes the
+    // config it accepts to its own instance directory and reloads it on load,
+    // so a config applied from the CLI shows up here too.
+    PROP(QString configJson READONLY)
+
+    // The network the MODULE is actually configured for, which is not
+    // necessarily the one selected in the form. They differ between changing
+    // the selector and pressing Start, and the State panel below is describing
+    // the module's, not the form's.
+    PROP(QString configuredNetwork READONLY)
     PROP(QString uiVersion READONLY)
 
     // ── Lifecycle ───────────────────────────────────────────────────────

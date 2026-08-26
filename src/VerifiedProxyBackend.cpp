@@ -1,5 +1,6 @@
 #include "VerifiedProxyBackend.h"
 
+
 #include <QJsonArray>
 #include <QJsonParseError>
 
@@ -21,6 +22,7 @@ constexpr int kStatusTimeoutMs = 5000;    // status() never touches the proxy th
 // operator is not left staring at a frozen panel. See the note on
 // m_sinceGoodPoll for what this does and does not cover.
 constexpr int kUnreachableMs = 15000;
+
 
 constexpr int kPollIntervalMs = 2000;
 
@@ -62,6 +64,21 @@ void VerifiedProxyBackend::onContextReady() {
             }
             setNetworksJson(QString::fromUtf8(
                 QJsonDocument(QJsonArray::fromVariantList(r.value)).toJson(QJsonDocument::Compact)));
+        },
+        Timeout(kCallTimeoutMs));
+
+    // Restore the last applied config from THE MODULE, which persists it to
+    // its own instance directory and reloads it on load. Asking the module
+    // rather than keeping a second copy here means one source of truth, and
+    // means a config applied from the CLI shows up in this form too.
+    //
+    // getConfigUnredacted() rather than getConfig(): the redacted view masks
+    // provider URLs, which cannot repopulate a field.
+    m_logos->verified_proxy_module.getConfigUnredactedAsyncResult(
+        [this](logos::AsyncResult<QVariantMap> r) {
+            if (!r.ok() || r.value.isEmpty()) return;   // nothing stored yet
+            setConfigJson(QString::fromUtf8(
+                QJsonDocument(QJsonObject::fromVariantMap(r.value)).toJson(QJsonDocument::Compact)));
         },
         Timeout(kCallTimeoutMs));
 
@@ -129,6 +146,7 @@ void VerifiedProxyBackend::pollStatus() {
             // badge and lastError, not by this flag.
             const QString st = s.value("state").toString();
             setRunning(st == QLatin1String("running") || st == QLatin1String("degraded"));
+            setConfiguredNetwork(s.value("network").toString());
             setChainId(s.value("chainId").toInt());
             setHeadBlock(s.value("head").toMap().value("blockNumber").toString());
             setEndpoint(s.value("httpServer").toMap().value("endpoint").toString());
@@ -166,6 +184,7 @@ void VerifiedProxyBackend::applyAndStart(QString configJson) {
             if (!r.value.success) { setBusy(false); const QString e = r.value.error.toString();
                                     setError(e);    emit configured(false, e); return; }
             setError({});
+            // No local copy to keep: configure() persisted it module-side.
             emit configured(true, {});
             // busy stays SET across the seam: the operator pressed one button
             // and this is still one operation, so the controls must not flicker
