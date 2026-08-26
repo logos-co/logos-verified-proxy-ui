@@ -15,6 +15,13 @@ constexpr int kCallTimeoutMs  = 45000;    // module  30s + slack
 constexpr int kStopTimeoutMs  = 20000;    // drain 2s + overshoot, generously
 constexpr int kStatusTimeoutMs = 5000;    // status() never touches the proxy thread
 
+// How long without an ANSWERED status() before the panel declares the module
+// unreachable. Comfortably more than kStatusTimeoutMs plus a poll interval, so
+// one slow answer cannot trip it, but far below the start timeout so an
+// operator is not left staring at a frozen panel. See the note on
+// m_sinceGoodPoll for what this does and does not cover.
+constexpr int kUnreachableMs = 15000;
+
 constexpr int kPollIntervalMs = 2000;
 
 QString pretty(const QVariantMap& m) {
@@ -44,6 +51,7 @@ void VerifiedProxyBackend::onContextReady() {
     // captured reference would dangle.
     m_logos = new LogosModules(modules().api);
 
+    m_sinceGoodPoll.start();
     m_pollTimer = new QTimer(this);
     m_pollTimer->setInterval(kPollIntervalMs);
     connect(m_pollTimer, &QTimer::timeout, this, [this] { pollStatus(); });
@@ -65,6 +73,22 @@ void VerifiedProxyBackend::log(const QString& line) { emit logLine(line); }
 
 void VerifiedProxyBackend::pollStatus() {
     if (!m_logos) return;
+
+    // Independent of any reply, because a crashed module never sends one.
+    if (m_sinceGoodPoll.isValid() && m_sinceGoodPoll.elapsed() > kUnreachableMs
+        && !m_declaredUnreachable) {
+        m_declaredUnreachable = true;
+        setState(QStringLiteral("unavailable"));
+        setRunning(false);
+        // Clearing busy is the point: a lifecycle call cannot still be in
+        // flight to a module that is not answering, and leaving it set
+        // disables Configure, Start, Stop and Send all at once.
+        setBusy(false);
+        setError(QStringLiteral(
+            "the module is not responding — it may have crashed. "
+            "Check the host log, then reload the app."));
+    }
+
     m_logos->verified_proxy_module.statusAsyncResult(
         [this](logos::AsyncResult<QVariantMap> r) {
             if (!r.ok()) {
@@ -72,7 +96,15 @@ void VerifiedProxyBackend::pollStatus() {
                 // simply not be loaded yet. Reflect it in `state` instead.
                 setState(QStringLiteral("unavailable"));
                 setRunning(false);
+                setBusy(false);
                 return;
+            }
+            m_sinceGoodPoll.restart();
+            if (m_declaredUnreachable) {
+                // It answered again: clear the watchdog verdict rather than
+                // latching the panel into an error it has recovered from.
+                m_declaredUnreachable = false;
+                setError({});
             }
             const QVariantMap s = r.value;
             setState(s.value("state").toString());

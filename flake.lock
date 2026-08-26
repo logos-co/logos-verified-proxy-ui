@@ -98519,11 +98519,11 @@
         "nimbus-eth1": "nimbus-eth1"
       },
       "locked": {
-        "lastModified": 1787766671,
-        "narHash": "sha256-c7lv3AzWwthLSCxH1fILvBgtaLgWFtbQcaL2zf16EOY=",
+        "lastModified": 1787773320,
+        "narHash": "sha256-1nOzGF2qdDF/audxh0AjcUc7+zeU45/R7kAlZWI7MJ4=",
         "owner": "logos-co",
         "repo": "logos-verified-proxy-module",
-        "rev": "a1a17acbc5aab0df2ff43bb716e892181a4a7200",
+        "rev": "074c2e099c755e837f026a519f29b2e72567e841",
         "type": "github"
       },
       "original": {

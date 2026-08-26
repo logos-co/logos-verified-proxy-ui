@@ -172,6 +172,22 @@ Rectangle {
                             // the whole host process down, so this is a
                             // dropdown rather than a text field on purpose.
                             model: ["sepolia", "mainnet", "hoodi"]
+
+                            // A trusted block root identifies a block on ONE
+                            // chain: carrying it across a network change builds
+                            // a config that cannot bootstrap, and whose failure
+                            // arrives long after the change that caused it.
+                            // Empty is honest; the operator refetches.
+                            property string appliedNetwork: ""
+                            onCurrentTextChanged: {
+                                if (appliedNetwork !== "" && currentText !== appliedNetwork
+                                        && rootField.text !== "") {
+                                    rootField.text = ""
+                                    logView.append("network → " + currentText
+                                        + ": trusted root cleared, it is chain-specific")
+                                }
+                                appliedNetwork = currentText
+                            }
                         }
 
                         LogosText { text: "Beacon API"; color: Theme.palette.textTertiary }
