@@ -1,0 +1,46 @@
+#include <QVariantMap>
+
+// The QML-facing surface of verified_proxy_module.
+//
+// Deliberately small: this is a management panel — configure, start, stop,
+// watch state, make a few calls — not a wallet.
+class VerifiedProxyBackend
+{
+    // ── State, refreshed by polling ─────────────────────────────────────
+    //
+    // Polled rather than event-subscribed on purpose. A UI plugin's event
+    // subscription is one-shot and is refused if it is armed before the
+    // registry handshake, with no retry — so a panel built on subscriptions
+    // silently shows nothing when it loses that race. status() is cheap and
+    // never touches the proxy thread, so a 2s poll is both simpler and
+    // strictly more robust here.
+    PROP(QString state READONLY)          // uninitialized|configured|starting|running|degraded|stopping|stopped|error
+    PROP(bool running READONLY)
+    PROP(QString endpoint READONLY)       // the module's own JSON-RPC URL, "" when disabled
+    PROP(QString statusJson READONLY)     // full status() payload, pretty-printed
+    PROP(QString headBlock READONLY)
+    PROP(int chainId READONLY)
+    PROP(QString lastError READONLY)
+    PROP(bool busy READONLY)              // a lifecycle call is in flight
+
+    PROP(QString configJson READONLY)     // last config we sent, for repopulating the form
+    PROP(QString uiVersion READONLY)
+
+    // ── Lifecycle ───────────────────────────────────────────────────────
+    SLOT(void configure(QString configJson))
+    SLOT(void start())
+    SLOT(void stop())
+    SLOT(void refreshStatus())
+
+    // ── Calls ───────────────────────────────────────────────────────────
+    // `paramsJson` is a JSON array, matching the module's rpc(method, params).
+    SLOT(void callRpc(QString method, QString paramsJson))
+
+    // ── Signals ─────────────────────────────────────────────────────────
+    SIGNAL(configured(bool ok, QString error))
+    SIGNAL(startFinished(bool ok, QString error))
+    SIGNAL(stopFinished(bool ok, QString error))
+    SIGNAL(statusUpdated(QVariantMap status))
+    SIGNAL(callFinished(QString method, bool ok, QString result))
+    SIGNAL(logLine(QString line))
+}

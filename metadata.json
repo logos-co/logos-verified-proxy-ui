@@ -1,0 +1,28 @@
+{
+  "name": "verified_proxy_ui",
+  "display_name": "Verified Proxy",
+  "version": "0.1.0",
+  "type": "ui_qml",
+  "interface": "universal",
+  "category": "wallet",
+  "description": "Configure and operate the light-client-verified Ethereum proxy",
+  "author": "Logos Core Team",
+  "main": "verified_proxy_ui_plugin",
+  "icon": "src/icons/verified-proxy.png",
+  "view": "qml/Main.qml",
+  "dependencies": ["verified_proxy_module"],
+  "codegen": {
+    "rep": "src/VerifiedProxyBackend.rep",
+    "backend_class": "VerifiedProxyBackend",
+    "backend_header": "VerifiedProxyBackend.h"
+  },
+
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": ["qt6.qtdeclarative"]
+    },
+    "external_libraries": [],
+    "cmake": { "find_packages": [], "extra_sources": [] }
+  }
+}
