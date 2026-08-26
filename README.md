@@ -11,7 +11,19 @@ contract in `src/VerifiedProxyBackend.rep`.
 nix build && nix build '.#lgx'
 ```
 
-## Three decisions worth knowing
+## Four decisions worth knowing
+
+**The panel is built from `Logos.Controls` on `Logos.Theme`.** Nothing declares
+that dependency, and nothing needs to: the design system is compiled into the
+*host* binary as static `qt_add_qml_module` targets registered under
+`qrc:/qt/qml`, and a `ui_qml` view is loaded by the host's own `QQmlEngine` (a
+`QQuickWidget` in Basecamp) — `ui-host` has no `QQmlEngine` at all. So there is
+no input in `flake.nix`, no key in `metadata.json`, and nothing staged into the
+`.lgx`. Two things will break it at *runtime* rather than at build time: shipping
+your own `src/qml/qmldir` (the builder generates one carrying this module's
+private URI, and overwriting it lets Qt's process-global type cache cross-match
+another plugin's same-named types), and creating a `src/qml/Logos/` directory
+(the host's `RestrictedUrlInterceptor` reserves that prefix case-insensitively).
 
 **State is polled, not subscribed.** A UI plugin's event subscription is
 one-shot and is refused outright if it is armed before the registry handshake,
@@ -46,3 +58,42 @@ generally do not. Proof-free calls (`eth_blockNumber`, `eth_chainId`,
 
 Tick **serve on 127.0.0.1** to have the module expose its own JSON-RPC endpoint;
 the URL then appears in the header and via `localEndpoint()`.
+
+## Pre-flight checks
+
+`nix build` proves nothing about the QML: the builder only copies `src/qml`, so
+it is green for `import Logos.Thmee`. An unresolved import takes down the *whole*
+view, and the only message that names the real cause goes to `qWarning` — the
+macOS unified log for a desktop-launched app, not any terminal you are watching.
+Run these instead. `DS` points at the design system's source tree; use the
+oldest revision you must satisfy, since the host, not this repo, decides which
+one is loaded.
+
+```bash
+DS=../logos-design-system/src/qml
+QTQML=$(dirname $(dirname $(readlink -f $(command -v qmllint))))/lib/qt-6/qml
+qmllint -I "$QTQML" -I "$DS" -W 0 --unqualified disable src/qml/Main.qml
+```
+
+`-W 0` is what makes warnings set the exit code; `--unqualified disable` is
+required because `logos` is a host-injected context property qmllint cannot see.
+This catches unresolved imports and misspelled type names — but **not** misspelled
+theme tokens: `Theme.palette` is declared `var`, so `Theme.palette.nonsense`
+evaluates to `undefined` silently, with no error and no warning. Check those by eye.
+
+Then instantiate it for real, which catches what the linter cannot — style
+customization rejections and missing runtime properties:
+
+```bash
+QT_QUICK_CONTROLS_STYLE=Basic QT_QPA_PLATFORM=offscreen qml -I "$QTQML" -I "$DS" src/qml/Main.qml
+```
+
+Forcing the `Basic` style is load-bearing: under the native macOS style the
+design system's own `contentItem` overrides are rejected. Both hosts already set
+it, but a bare `qml` does not. If icons report *"Unsupported image format"*, your
+`qml` has no Qt SVG plugin — add `QT_PLUGIN_PATH` from a **matching** qtsvg
+version; mixing Qt minor versions produces far more confusing failures.
+
+Neither gate exercises the sandbox or the host's real design-system revision, so
+finish by installing the `.lgx` and launching Basecamp from a terminal with
+`QT_FORCE_STDERR_LOGGING=1`.

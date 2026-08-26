@@ -1,26 +1,40 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+
+import Logos.Theme
+import Logos.Controls
+import Logos.Icons
 
 // Management panel for verified_proxy_module: configure, start, stop, watch
 // state, and make a few verified calls.
 //
-// Deliberately plain QtQuick.Controls with inline colours rather than
-// Logos.Theme: a single unresolved import takes down the WHOLE view, and the
-// host routes that qWarning to journald where it is easy to miss. Fewer
-// imports, fewer ways to end up staring at an empty pane.
-Item {
+// Built from Logos.Controls against Logos.Theme, like every other panel in the
+// app. Nothing has to be declared to get them: the design system is compiled
+// into the HOST binary as static qt_add_qml_module targets registered under
+// qrc:/qt/qml, and a ui_qml view is loaded by the host's own QQmlEngine (a
+// QQuickWidget in Basecamp) — ui-host has no QQmlEngine at all. So there is no
+// dependency to add in metadata.json and nothing staged into the .lgx.
+//
+// Two things NOT to do here, both of which break at runtime rather than at
+// build time: do not ship a src/qml/qmldir (the builder generates one carrying
+// this module's private URI, and overwriting it lets Qt's process-global type
+// cache cross-match another plugin's same-named types), and do not create a
+// src/qml/Logos/ directory (the host's RestrictedUrlInterceptor reserves that
+// prefix case-insensitively and will refuse to resolve anything under it).
+Rectangle {
     id: root
     implicitWidth: 900
     implicitHeight: 720
+    color: Theme.palette.background
 
-    readonly property color bg:      "#12151f"
-    readonly property color card:    "#1b1f2c"
-    readonly property color line:    "#2b3145"
-    readonly property color fg:      "#e6e9f0"
-    readonly property color muted:   "#8b93a7"
-    readonly property color accent:  "#42c48c"
-    readonly property color danger:  "#e2555f"
+    // Set by onCallFinished. A binding, not an imperative colour write — the
+    // old `resultBox.color = …` permanently destroyed the declared binding the
+    // first time a call completed.
+    property bool lastCallOk: true
+
+    // Whichever of the method dropdown and the custom field is active.
+    readonly property string activeMethod:
+        methodBox.currentText === "custom…" ? customMethod.text.trim() : methodBox.currentText
 
     QtObject {
         id: d
@@ -29,15 +43,13 @@ Item {
         readonly property bool ready: backend !== null
 
         function stateColour(s) {
-            if (s === "running")  return root.accent
-            if (s === "degraded") return "#e8b339"
-            if (s === "error" || s === "unavailable") return root.danger
-            if (s === "starting" || s === "stopping") return "#5aa9e6"
-            return root.muted
+            if (s === "running")  return Theme.palette.success
+            if (s === "degraded") return Theme.palette.warning
+            if (s === "error" || s === "unavailable") return Theme.palette.error
+            if (s === "starting" || s === "stopping") return Theme.palette.info
+            return Theme.palette.textTertiary
         }
     }
-
-    Rectangle { anchors.fill: parent; color: root.bg }
 
     // ── the config the form builds ──────────────────────────────────────
     function buildConfig() {
@@ -53,10 +65,10 @@ Item {
             cfg["httpServer"] = {
                 "enabled": true,
                 "host": "127.0.0.1",
-                "port": parseInt(portField.text || "8545", 10)
+                "port": parseInt(portField.text, 10)
             }
         }
-        return JSON.stringify(cfg, null, 2)
+        return JSON.stringify(cfg)
     }
 
     // Asks the backend, which asks the module. Basecamp sandboxes ui_qml
@@ -84,77 +96,75 @@ Item {
         }
         function onCallFinished(method, ok, result) {
             resultBox.text = result
-            resultBox.color = ok ? root.fg : root.danger
+            root.lastCallOk = ok
             logView.append((ok ? "← " : "✗ ") + method)
         }
     }
 
-    ScrollView {
+    LogosScrollView {
+        id: sv
         anchors.fill: parent
-        anchors.margins: 16
+        anchors.margins: Theme.spacing.large
+        // LogosScrollView hard-binds contentWidth to its own width; this panel
+        // wants the width inside the scrollbar gutter.
         contentWidth: availableWidth
-        clip: true
 
         ColumnLayout {
-            width: root.width - 40
-            spacing: 14
+            width: sv.availableWidth
+            spacing: Theme.spacing.medium
 
             // ── header ──────────────────────────────────────────────────
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
-                Label {
+                spacing: Theme.spacing.small
+                LogosText {
                     text: "Verified Proxy"
-                    color: root.fg
-                    font.pixelSize: 22
-                    font.bold: true
+                    font.pixelSize: Theme.typography.panelTitleText
+                    font.weight: Theme.typography.weightBold
                 }
-                Rectangle {
-                    radius: 10; height: 22
-                    implicitWidth: stateLabel.implicitWidth + 20
-                    color: "transparent"
-                    border.color: d.stateColour(d.ready ? d.backend.state : "unavailable")
-                    border.width: 1
-                    Label {
-                        id: stateLabel
-                        anchors.centerIn: parent
-                        text: d.ready ? d.backend.state : "no module"
-                        color: d.stateColour(d.ready ? d.backend.state : "unavailable")
-                        font.pixelSize: 12
-                    }
+                LogosBadge {
+                    text: d.ready ? d.backend.state : "no module"
+                    color: d.stateColour(d.ready ? d.backend.state : "unavailable")
                 }
                 Item { Layout.fillWidth: true }
-                BusyIndicator { running: d.ready && d.backend.busy; implicitWidth: 22; implicitHeight: 22 }
-                Label {
+                LogosSpinner {
+                    running: d.ready && d.backend.busy
+                    visible: running
+                    implicitWidth: 22
+                    implicitHeight: 22
+                }
+                LogosText {
                     visible: d.ready && d.backend.endpoint !== ""
                     text: d.ready ? d.backend.endpoint : ""
-                    color: root.accent
-                    font.pixelSize: 12
+                    // success, not primary: this only appears while the
+                    // endpoint is actually serving, so it is a liveness
+                    // signal rather than a brand accent.
+                    color: Theme.palette.success
+                    font.pixelSize: Theme.typography.secondaryText
                 }
             }
 
             // ── configuration ───────────────────────────────────────────
-            Rectangle {
+            LogosFrame {
                 Layout.fillWidth: true
-                color: root.card; radius: 8; border.color: root.line
-                implicitHeight: cfgCol.implicitHeight + 28
+                backgroundColor: Theme.palette.surfaceRaised
+                borderColor: Theme.palette.borderSecondary
+                radius: Theme.spacing.radiusLarge
+                padding: Theme.spacing.large
 
-                ColumnLayout {
-                    id: cfgCol
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 8
+                contentItem: ColumnLayout {
+                    spacing: Theme.spacing.small
 
-                    Label { text: "Configuration"; color: root.fg; font.bold: true }
+                    LogosText { text: "Configuration"; font.weight: Theme.typography.weightBold }
 
                     GridLayout {
                         columns: 2
-                        columnSpacing: 10
-                        rowSpacing: 8
+                        columnSpacing: Theme.spacing.small
+                        rowSpacing: Theme.spacing.small
                         Layout.fillWidth: true
 
-                        Label { text: "Network"; color: root.muted }
-                        ComboBox {
+                        LogosText { text: "Network"; color: Theme.palette.textTertiary }
+                        LogosComboBox {
                             id: networkBox
                             Layout.fillWidth: true
                             // Exactly the three the library supports. Anything
@@ -164,74 +174,78 @@ Item {
                             model: ["sepolia", "mainnet", "hoodi"]
                         }
 
-                        Label { text: "Beacon API"; color: root.muted }
-                        TextField {
+                        LogosText { text: "Beacon API"; color: Theme.palette.textTertiary }
+                        LogosTextField {
                             id: beaconField
                             Layout.fillWidth: true
                             text: "https://lodestar-sepolia.chainsafe.io"
                             placeholderText: "https://…  (must serve the light-client REST API)"
                         }
 
-                        Label { text: "Execution API"; color: root.muted }
-                        TextField {
+                        LogosText { text: "Execution API"; color: Theme.palette.textTertiary }
+                        LogosTextField {
                             id: execField
                             Layout.fillWidth: true
                             text: "https://ethereum-sepolia-rpc.publicnode.com"
                             placeholderText: "https:// or wss://  (must support eth_getProof)"
                         }
 
-                        Label { text: "Trusted root"; color: root.muted }
+                        LogosText { text: "Trusted root"; color: Theme.palette.textTertiary }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField {
+                            spacing: Theme.spacing.small
+                            LogosTextField {
                                 id: rootField
                                 Layout.fillWidth: true
                                 placeholderText: "0x… 32-byte hex — the root of trust"
                             }
-                            Button { text: "Fetch finalized"; onClicked: root.fetchFinalizedRoot() }
+                            LogosButton {
+                                text: "Fetch finalized"
+                                onClicked: root.fetchFinalizedRoot()
+                            }
                         }
 
-                        Label { text: "Keep-alive"; color: root.muted }
+                        LogosText { text: "Keep-alive"; color: Theme.palette.textTertiary }
                         RowLayout {
                             Layout.fillWidth: true
-                            ComboBox {
+                            spacing: Theme.spacing.small
+                            LogosComboBox {
                                 id: keepAliveBox
+                                Layout.preferredWidth: 160
                                 // "off" is offered last and never preselected:
                                 // without a heartbeat the verified head goes
                                 // BACKWARDS (measured: -39 blocks over 5 min).
                                 model: ["interval", "continuous", "off"]
                             }
-                            Label {
+                            LogosBadge {
                                 visible: keepAliveBox.currentText === "off"
-                                text: "⚠ the head regresses without a heartbeat"
-                                color: "#e8b339"
-                                font.pixelSize: 11
+                                text: "head regresses without a heartbeat"
+                                iconSource: LogosIcons.warning
+                                color: Theme.palette.warning
                             }
                             Item { Layout.fillWidth: true }
                         }
 
-                        Label { text: "JSON-RPC endpoint"; color: root.muted }
+                        LogosText { text: "JSON-RPC endpoint"; color: Theme.palette.textTertiary }
                         RowLayout {
                             Layout.fillWidth: true
-                            CheckBox {
+                            spacing: Theme.spacing.small
+                            // LogosCheckbox ships its own themed LogosText
+                            // contentItem, which is exactly why the old
+                            // hand-rolled override existed.
+                            LogosCheckbox {
                                 id: httpEnabled
                                 text: "serve on 127.0.0.1"
                                 checked: false
-                                // The stock Basic style draws its label in the
-                                // default palette colour, which is near-black
-                                // on this panel and effectively invisible.
-                                contentItem: Label {
-                                    text: httpEnabled.text
-                                    color: root.fg
-                                    verticalAlignment: Text.AlignVCenter
-                                    leftPadding: httpEnabled.indicator.width + httpEnabled.spacing
-                                }
                             }
-                            TextField {
+                            LogosTextField {
                                 id: portField
                                 enabled: httpEnabled.checked
                                 text: "8545"
-                                implicitWidth: 90
+                                Layout.preferredWidth: 90
+                                // With a validator set, LogosTextField paints
+                                // its border with the error colour while the
+                                // input is unacceptable.
                                 validator: IntValidator { bottom: 1; top: 65535 }
                             }
                             Item { Layout.fillWidth: true }
@@ -240,103 +254,115 @@ Item {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
-                        Button {
+                        spacing: Theme.spacing.small
+                        LogosButton {
                             text: "Configure"
+                            variant: LogosButton.Variant.Primary
                             enabled: d.ready && !d.backend.busy && rootField.text.trim() !== ""
                             onClicked: d.backend.configure(root.buildConfig())
                         }
-                        Button {
+                        LogosButton {
                             text: "Start"
+                            variant: LogosButton.Variant.Primary
                             enabled: d.ready && !d.backend.busy && !d.backend.running
                             onClicked: d.backend.start()
                         }
-                        Button {
+                        LogosButton {
                             text: "Stop"
                             enabled: d.ready && !d.backend.busy && d.backend.running
                             onClicked: d.backend.stop()
                         }
                         Item { Layout.fillWidth: true }
-                        Button { text: "Refresh"; enabled: d.ready; onClicked: d.backend.refreshStatus() }
+                        LogosButton {
+                            text: "Refresh"
+                            leadingIcon.source: LogosIcons.refresh
+                            enabled: d.ready
+                            onClicked: d.backend.refreshStatus()
+                        }
                     }
 
-                    Label {
+                    LogosText {
                         visible: d.ready && d.backend.lastError !== ""
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         text: d.ready ? d.backend.lastError : ""
-                        color: root.danger
-                        font.pixelSize: 12
+                        color: Theme.palette.error
+                        font.pixelSize: Theme.typography.secondaryText
                     }
                 }
             }
 
             // ── state ───────────────────────────────────────────────────
-            Rectangle {
+            LogosFrame {
                 Layout.fillWidth: true
-                color: root.card; radius: 8; border.color: root.line
-                implicitHeight: stCol.implicitHeight + 28
+                backgroundColor: Theme.palette.surfaceRaised
+                borderColor: Theme.palette.borderSecondary
+                radius: Theme.spacing.radiusLarge
+                padding: Theme.spacing.large
 
-                ColumnLayout {
-                    id: stCol
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 8
+                contentItem: ColumnLayout {
+                    spacing: Theme.spacing.small
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Label { text: "State"; color: root.fg; font.bold: true }
+                        LogosText { text: "State"; font.weight: Theme.typography.weightBold }
                         Item { Layout.fillWidth: true }
-                        Label {
+                        LogosText {
                             text: "chain " + (d.ready ? d.backend.chainId : 0)
                                   + "   head " + (d.ready && d.backend.headBlock !== "" ? d.backend.headBlock : "—")
-                            color: root.muted
-                            font.pixelSize: 12
+                            color: Theme.palette.textTertiary
+                            font.pixelSize: Theme.typography.secondaryText
                         }
                     }
 
-                    Button {
+                    LogosButton {
                         text: rawJson.visible ? "Hide raw status" : "Show raw status"
+                        trailingIcon.source: rawJson.visible ? LogosIcons.triangleUp : LogosIcons.triangleDown
                         onClicked: rawJson.visible = !rawJson.visible
                     }
-                    TextArea {
+                    LogosTextArea {
                         id: rawJson
                         visible: false
                         Layout.fillWidth: true
                         implicitHeight: 200
                         readOnly: true
-                        font.family: "monospace"
-                        font.pixelSize: 11
-                        color: root.muted
+                        font.family: Theme.typography.mono
+                        font.pixelSize: Theme.typography.secondaryText
+                        color: Theme.palette.textTertiary
                         text: d.ready ? d.backend.statusJson : ""
                     }
                 }
             }
 
             // ── calls ───────────────────────────────────────────────────
-            Rectangle {
+            LogosFrame {
                 Layout.fillWidth: true
-                color: root.card; radius: 8; border.color: root.line
-                implicitHeight: callCol.implicitHeight + 28
+                backgroundColor: Theme.palette.surfaceRaised
+                borderColor: Theme.palette.borderSecondary
+                radius: Theme.spacing.radiusLarge
+                padding: Theme.spacing.large
 
-                ColumnLayout {
-                    id: callCol
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 8
+                contentItem: ColumnLayout {
+                    spacing: Theme.spacing.small
 
-                    Label { text: "Verified call"; color: root.fg; font.bold: true }
+                    LogosText { text: "Verified call"; font.weight: Theme.typography.weightBold }
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
-                        ComboBox {
+                        spacing: Theme.spacing.small
+                        // LogosComboBox is NOT editable-capable: its contentItem
+                        // is a LogosText, not a TextInput, so `editable: true`
+                        // silently gives no caret and desyncs editText from
+                        // what is displayed — it would submit a method the user
+                        // can neither see nor set. The module exposes far more
+                        // methods than the presets below, so "custom…" reveals
+                        // a real text field instead.
+                        LogosComboBox {
                             id: methodBox
                             Layout.preferredWidth: 260
-                            editable: true
                             model: ["eth_blockNumber", "eth_chainId", "eth_gasPrice",
                                     "eth_getBalance", "eth_getCode", "eth_getBlockByNumber",
-                                    "eth_syncing"]
+                                    "eth_syncing", "custom…"]
                             onCurrentTextChanged: {
                                 // Prefill the shape each method expects, so the
                                 // panel is usable without consulting the docs.
@@ -348,46 +374,54 @@ Item {
                                     paramsField.text = "[]"
                             }
                         }
-                        TextField {
+                        LogosTextField {
+                            id: customMethod
+                            visible: methodBox.currentText === "custom…"
+                            Layout.preferredWidth: 220
+                            placeholderText: "eth_… / op_…"
+                        }
+                        LogosTextField {
                             id: paramsField
                             Layout.fillWidth: true
                             text: "[]"
                             placeholderText: "JSON array of params"
                         }
-                        Button {
+                        LogosButton {
                             text: "Send"
-                            enabled: d.ready && d.backend.running
-                            onClicked: d.backend.callRpc(methodBox.editText, paramsField.text)
+                            variant: LogosButton.Variant.Primary
+                            enabled: d.ready && d.backend.running && root.activeMethod !== ""
+                            onClicked: d.backend.callRpc(root.activeMethod, paramsField.text)
                         }
                     }
 
-                    TextArea {
+                    LogosTextArea {
                         id: resultBox
                         Layout.fillWidth: true
                         implicitHeight: 130
                         readOnly: true
-                        font.family: "monospace"
-                        font.pixelSize: 11
-                        color: root.fg
+                        font.family: Theme.typography.mono
+                        font.pixelSize: Theme.typography.secondaryText
+                        color: root.lastCallOk ? Theme.palette.text : Theme.palette.error
                         text: ""
                     }
                 }
             }
 
             // ── log ─────────────────────────────────────────────────────
-            Rectangle {
+            LogosFrame {
                 Layout.fillWidth: true
-                color: root.card; radius: 8; border.color: root.line
-                implicitHeight: 150
+                Layout.preferredHeight: 150
+                backgroundColor: Theme.palette.surfaceRaised
+                borderColor: Theme.palette.borderSecondary
+                radius: Theme.spacing.radiusLarge
+                padding: Theme.spacing.small
 
-                TextArea {
+                contentItem: LogosTextArea {
                     id: logView
-                    anchors.fill: parent
-                    anchors.margins: 10
                     readOnly: true
-                    font.family: "monospace"
-                    font.pixelSize: 11
-                    color: root.muted
+                    font.family: Theme.typography.mono
+                    font.pixelSize: Theme.typography.secondaryText
+                    color: Theme.palette.textTertiary
                     text: ""
                     function append(line) { text = text + (text === "" ? "" : "\n") + line }
                 }
