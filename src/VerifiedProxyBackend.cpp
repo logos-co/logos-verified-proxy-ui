@@ -142,7 +142,7 @@ void VerifiedProxyBackend::refreshStatus() { pollStatus(); }
 
 // ── lifecycle ───────────────────────────────────────────────────────────────
 
-void VerifiedProxyBackend::configure(QString configJson) {
+void VerifiedProxyBackend::applyAndStart(QString configJson) {
     if (!m_logos) return;
 
     QJsonParseError perr{};
@@ -161,21 +161,21 @@ void VerifiedProxyBackend::configure(QString configJson) {
     m_logos->verified_proxy_module.configureAsyncResult(
         doc.object().toVariantMap(),
         [this](logos::AsyncResult<LogosResult> r) {
-            setBusy(false);
-            if (!r.ok())            { setError(describe(r.error));       emit configured(false, describe(r.error)); return; }
-            if (!r.value.success)   { const QString e = r.value.error.toString();
-                                      setError(e);                       emit configured(false, e); return; }
+            if (!r.ok())          { setBusy(false); setError(describe(r.error));
+                                    emit configured(false, describe(r.error)); return; }
+            if (!r.value.success) { setBusy(false); const QString e = r.value.error.toString();
+                                    setError(e);    emit configured(false, e); return; }
             setError({});
-            log(QStringLiteral("configured"));
             emit configured(true, {});
-            pollStatus();
+            // busy stays SET across the seam: the operator pressed one button
+            // and this is still one operation, so the controls must not flicker
+            // back to enabled between the two calls.
+            startAfterConfigure();
         },
         Timeout(kCallTimeoutMs));
 }
 
-void VerifiedProxyBackend::start() {
-    if (!m_logos) return;
-    setBusy(true);
+void VerifiedProxyBackend::startAfterConfigure() {
     log(QStringLiteral("starting — the light client must bootstrap, this can take a while"));
 
     // ASYNC deliberately: start() blocks in the module until the light client

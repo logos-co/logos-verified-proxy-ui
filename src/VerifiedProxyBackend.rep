@@ -35,8 +35,14 @@ class VerifiedProxyBackend
     PROP(QString uiVersion READONLY)
 
     // ── Lifecycle ───────────────────────────────────────────────────────
-    SLOT(void configure(QString configJson))
-    SLOT(void start())
+    // Applies `configJson` and then starts, as ONE operation.
+    //
+    // Deliberately not two slots a view calls in sequence: start() runs the
+    // config the module has STORED, so a separate configure step that the
+    // operator can skip means an edited form silently starts the previous
+    // config. The module also refuses to reconfigure while running, so
+    // "apply, then start" is the only ordering that is ever valid anyway.
+    SLOT(void applyAndStart(QString configJson))
     SLOT(void stop())
     SLOT(void refreshStatus())
 

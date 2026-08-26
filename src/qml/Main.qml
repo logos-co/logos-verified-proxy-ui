@@ -36,6 +36,15 @@ Rectangle {
     readonly property string activeMethod:
         methodBox.currentText === "custom…" ? customMethod.text.trim() : methodBox.currentText
 
+    // LogosTextField propagates `enabled` to its inner TextInput but ships no
+    // disabled STYLING, unlike LogosComboBox/LogosCheckbox — so a frozen field
+    // stays visually indistinguishable from an editable one and invites the
+    // operator to type into it. 0.5 is the design system's own convention for
+    // disabled inputs (LogosCheckbox.qml:37, LogosRadioButton.qml:34).
+    component ConfigField: LogosTextField {
+        opacity: enabled ? 1.0 : 0.5
+    }
+
     QtObject {
         id: d
         readonly property string mod: "verified_proxy_ui"
@@ -49,6 +58,13 @@ Rectangle {
             if (!ready || !backend.networksJson) return []
             try { return JSON.parse(backend.networksJson) } catch (e) { return [] }
         }
+        // The proxy runs ONE chain: there is a single Context and a single
+        // `network` in its config, and the module refuses to reconfigure while
+        // running. So the whole configuration section is read-only while it is
+        // live — leaving fields editable would let an operator change a value
+        // that silently does not take effect.
+        readonly property bool locked: ready && (backend.busy || backend.running)
+
         function profileFor(name) {
             for (var i = 0; i < networks.length; ++i)
                 if (networks[i].name === name) return networks[i]
@@ -168,7 +184,18 @@ Rectangle {
                 contentItem: ColumnLayout {
                     spacing: Theme.spacing.small
 
-                    LogosText { text: "Configuration"; font.weight: Theme.typography.weightBold }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing.small
+                        LogosText { text: "Configuration"; font.weight: Theme.typography.weightBold }
+                        LogosText {
+                            visible: d.locked
+                            text: "— read-only while running; press Stop to change it"
+                            color: Theme.palette.textTertiary
+                            font.pixelSize: Theme.typography.secondaryText
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
 
                     GridLayout {
                         columns: 2
@@ -180,6 +207,7 @@ Rectangle {
                         LogosComboBox {
                             id: networkBox
                             Layout.fillWidth: true
+                            enabled: !d.locked
                             // Straight from the module's whitelist. Hardcoding
                             // it here would be a crash waiting to happen:
                             // `network` is a value that reaches a quit() inside
@@ -222,9 +250,10 @@ Rectangle {
                         }
 
                         LogosText { text: "Beacon API"; color: Theme.palette.textTertiary }
-                        LogosTextField {
+                        ConfigField {
                             id: beaconField
                             Layout.fillWidth: true
+                            enabled: !d.locked
                             // No hardcoded default: it comes from the module's
                             // network table, which is where the verified pairs
                             // live.
@@ -232,9 +261,10 @@ Rectangle {
                         }
 
                         LogosText { text: "Execution API"; color: Theme.palette.textTertiary }
-                        LogosTextField {
+                        ConfigField {
                             id: execField
                             Layout.fillWidth: true
+                            enabled: !d.locked
                             placeholderText: "https:// or wss://  (must support eth_getProof)"
                         }
 
@@ -242,13 +272,15 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.spacing.small
-                            LogosTextField {
+                            ConfigField {
                                 id: rootField
                                 Layout.fillWidth: true
+                                enabled: !d.locked
                                 placeholderText: "0x… 32-byte hex — the root of trust"
                             }
                             LogosButton {
                                 text: "Fetch finalized"
+                                enabled: !d.locked
                                 onClicked: root.fetchFinalizedRoot()
                             }
                         }
@@ -260,6 +292,7 @@ Rectangle {
                             LogosComboBox {
                                 id: keepAliveBox
                                 Layout.preferredWidth: 160
+                                enabled: !d.locked
                                 // "off" is offered last and never preselected:
                                 // without a heartbeat the verified head goes
                                 // BACKWARDS (measured: -39 blocks over 5 min).
@@ -285,10 +318,11 @@ Rectangle {
                                 id: httpEnabled
                                 text: "serve on 127.0.0.1"
                                 checked: false
+                                enabled: !d.locked
                             }
-                            LogosTextField {
+                            ConfigField {
                                 id: portField
-                                enabled: httpEnabled.checked
+                                enabled: httpEnabled.checked && !d.locked
                                 text: "8545"
                                 Layout.preferredWidth: 90
                                 // With a validator set, LogosTextField paints
@@ -303,18 +337,17 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.spacing.small
-                        LogosButton {
-                            text: "Configure"
-                            variant: LogosButton.Variant.Primary
-                            enabled: d.ready && !d.backend.busy && rootField.text.trim() !== ""
-                                     && beaconField.text.trim() !== "" && execField.text.trim() !== ""
-                            onClicked: d.backend.configure(root.buildConfig())
-                        }
+                        // ONE action. There is no separate "Configure" step:
+                        // the module's start() runs the config it has STORED,
+                        // so a commit step the operator can skip means an
+                        // edited form silently starts the previous settings.
                         LogosButton {
                             text: "Start"
                             variant: LogosButton.Variant.Primary
                             enabled: d.ready && !d.backend.busy && !d.backend.running
-                            onClicked: d.backend.start()
+                                     && rootField.text.trim() !== ""
+                                     && beaconField.text.trim() !== "" && execField.text.trim() !== ""
+                            onClicked: d.backend.applyAndStart(root.buildConfig())
                         }
                         LogosButton {
                             text: "Stop"

@@ -27,8 +27,15 @@ class VerifiedProxyBackend : public VerifiedProxyBackendSimpleSource,
 public:
     explicit VerifiedProxyBackend(QObject* parent = nullptr);
 
-    void configure(QString configJson) override;
-    void start() override;
+    void applyAndStart(QString configJson) override;
+
+private:
+    /// Second half of applyAndStart(). Never called on its own — start() runs
+    /// the config the module has stored, so it is only ever valid straight
+    /// after a successful configure().
+    void startAfterConfigure();
+
+public:
     void stop() override;
     void refreshStatus() override;
     void fetchFinalizedRoot(QString beaconUrl) override;
