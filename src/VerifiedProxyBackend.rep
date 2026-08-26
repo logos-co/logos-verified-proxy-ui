@@ -32,6 +32,12 @@ class VerifiedProxyBackend
     SLOT(void stop())
     SLOT(void refreshStatus())
 
+    // Asks the MODULE to fetch a finalized block root, because Basecamp
+    // sandboxes ui_qml plugins away from the network: an XMLHttpRequest from
+    // the view is refused outright ("sandboxed ui_qml modules may not use the
+    // network"). A core module has no such restriction.
+    SLOT(void fetchFinalizedRoot(QString beaconUrl))
+
     // ── Calls ───────────────────────────────────────────────────────────
     // `paramsJson` is a JSON array, matching the module's rpc(method, params).
     SLOT(void callRpc(QString method, QString paramsJson))
@@ -43,4 +49,5 @@ class VerifiedProxyBackend
     SIGNAL(statusUpdated(QVariantMap status))
     SIGNAL(callFinished(QString method, bool ok, QString result))
     SIGNAL(logLine(QString line))
+    SIGNAL(finalizedRootFetched(bool ok, QString root, QString error))
 }

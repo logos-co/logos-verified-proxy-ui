@@ -59,33 +59,29 @@ Item {
         return JSON.stringify(cfg, null, 2)
     }
 
-    // Fetching the finalized root over HTTP from the view is a shortcut, but a
-    // defensible one: without a trusted root nothing else on this panel works,
-    // and the whole security model rests on the user choosing that source
-    // deliberately rather than taking it from the provider being verified.
+    // Asks the backend, which asks the module. Basecamp sandboxes ui_qml
+    // plugins away from the network, so an XMLHttpRequest from here is refused
+    // outright — and a view is the wrong place for an outbound request anyway.
+    // The module answers on finalizedRootFetched.
+    //
+    // Note this is a convenience, not a trust anchor: a root taken from the
+    // same endpoint being verified proves nothing. For anything holding real
+    // value, obtain the root independently and paste it in.
     function fetchFinalizedRoot() {
         var base = beaconField.text.trim()
         if (!base) { logView.append("beacon URL is empty"); return }
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            if (xhr.status !== 200) { logView.append("root fetch failed: HTTP " + xhr.status); return }
-            try {
-                var r = JSON.parse(xhr.responseText).data.root
-                rootField.text = r
-                logView.append("trusted root ← " + base + "  " + r)
-            } catch (e) { logView.append("root fetch: unexpected response") }
-        }
-        xhr.open("GET", base + "/eth/v1/beacon/headers/finalized")
-        xhr.send()
+        d.backend.fetchFinalizedRoot(base)
     }
 
     Connections {
         target: d.backend
-        function onConfigured(ok, error)      { logView.append(ok ? "configured" : "configure failed: " + error) }
-        function onStartFinished(ok, error)   { logView.append(ok ? "started" : "start failed: " + error) }
-        function onStopFinished(ok, error)    { logView.append(ok ? "stopped" : "stop failed: " + error) }
+        // Deliberately no logging here. The backend already emits a logLine for
+        // every outcome — success from log(), failure from setError() — so
+        // appending again here printed each one twice.
         function onLogLine(l)                 { logView.append(l) }
+        function onFinalizedRootFetched(ok, root, error) {
+            if (ok) rootField.text = root
+        }
         function onCallFinished(method, ok, result) {
             resultBox.text = result
             resultBox.color = ok ? root.fg : root.danger
@@ -217,7 +213,20 @@ Item {
                         Label { text: "JSON-RPC endpoint"; color: root.muted }
                         RowLayout {
                             Layout.fillWidth: true
-                            CheckBox { id: httpEnabled; text: "serve on 127.0.0.1"; checked: false }
+                            CheckBox {
+                                id: httpEnabled
+                                text: "serve on 127.0.0.1"
+                                checked: false
+                                // The stock Basic style draws its label in the
+                                // default palette colour, which is near-black
+                                // on this panel and effectively invisible.
+                                contentItem: Label {
+                                    text: httpEnabled.text
+                                    color: root.fg
+                                    verticalAlignment: Text.AlignVCenter
+                                    leftPadding: httpEnabled.indicator.width + httpEnabled.spacing
+                                }
+                            }
                             TextField {
                                 id: portField
                                 enabled: httpEnabled.checked

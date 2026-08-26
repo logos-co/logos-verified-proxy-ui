@@ -30,6 +30,7 @@ public:
     void start() override;
     void stop() override;
     void refreshStatus() override;
+    void fetchFinalizedRoot(QString beaconUrl) override;
     void callRpc(QString method, QString paramsJson) override;
 
 protected:

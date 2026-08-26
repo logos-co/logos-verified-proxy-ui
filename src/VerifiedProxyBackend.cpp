@@ -76,7 +76,13 @@ void VerifiedProxyBackend::pollStatus() {
             }
             const QVariantMap s = r.value;
             setState(s.value("state").toString());
-            setRunning(s.value("state").toString() == QLatin1String("running"));
+            // "degraded" means up-but-heartbeat-failing, so it is still a
+            // live, stoppable process. Treating it as not-running would
+            // disable Stop and re-enable Start on exactly the proxy the
+            // operator most needs to restart. Health is shown by the state
+            // badge and lastError, not by this flag.
+            const QString st = s.value("state").toString();
+            setRunning(st == QLatin1String("running") || st == QLatin1String("degraded"));
             setChainId(s.value("chainId").toInt());
             setHeadBlock(s.value("head").toMap().value("blockNumber").toString());
             setEndpoint(s.value("httpServer").toMap().value("endpoint").toString());
@@ -161,6 +167,37 @@ void VerifiedProxyBackend::stop() {
 }
 
 // ── calls ───────────────────────────────────────────────────────────────────
+
+void VerifiedProxyBackend::fetchFinalizedRoot(QString beaconUrl) {
+    if (!m_logos) return;
+
+    // Forwarded to the module rather than fetched here: Basecamp's sandbox
+    // blocks network access from ui_qml plugins, and rightly so — the view is
+    // the least trustworthy place to put an outbound request.
+    log(QStringLiteral("fetching finalized root from ") + beaconUrl);
+    m_logos->verified_proxy_module.fetchFinalizedRootAsyncResult(
+        beaconUrl,
+        [this](logos::AsyncResult<LogosResult> r) {
+            if (!r.ok()) {
+                emit finalizedRootFetched(false, {}, describe(r.error));
+                log(QStringLiteral("error: ") + describe(r.error));
+                return;
+            }
+            if (!r.value.success) {
+                const QString e = r.value.error.toString();
+                emit finalizedRootFetched(false, {}, e);
+                log(QStringLiteral("error: ") + e);
+                return;
+            }
+            const QVariantMap m = r.value.value.toMap();
+            const QString root = m.value(QStringLiteral("root")).toString();
+            const QString slot = m.value(QStringLiteral("slot")).toString();
+            emit finalizedRootFetched(true, root, {});
+            log(QStringLiteral("finalized root ") + root
+                + (slot.isEmpty() ? QString() : QStringLiteral(" (slot ") + slot + QLatin1Char(')')));
+        },
+        Timeout(kCallTimeoutMs));
+}
 
 void VerifiedProxyBackend::callRpc(QString method, QString paramsJson) {
     if (!m_logos) return;
