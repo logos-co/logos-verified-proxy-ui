@@ -18445,11 +18445,11 @@
         "nimbus-eth1": "nimbus-eth1"
       },
       "locked": {
-        "lastModified": 1787779836,
-        "narHash": "sha256-extmq6uHZkzVY9+QYiLgokRfnji3FKNAcIpFrl9g7Sc=",
+        "lastModified": 1788461543,
+        "narHash": "sha256-hqx4l+ooT9yf2h71nm/gbH1XTK8JZOOr4CjbunDbha0=",
         "owner": "logos-co",
         "repo": "logos-verified-proxy-module",
-        "rev": "3d08debc5755616f486a8287e05b6e3f20cdf91f",
+        "rev": "53a619417603e311efdee464df729e0e1a6cc3bc",
         "type": "github"
       },
       "original": {
