@@ -11,6 +11,9 @@
   "icon": "src/icons/verified-proxy.png",
   "view": "qml/Main.qml",
   "dependencies": ["verified_proxy_module"],
+  "provides": [
+    { "intent": "evm.verified_routing.operate", "handoff": true }
+  ],
   "codegen": {
     "rep": "src/VerifiedProxyBackend.rep",
     "backend_class": "VerifiedProxyBackend",

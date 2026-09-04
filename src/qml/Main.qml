@@ -151,6 +151,22 @@ Rectangle {
     }
     Component.onCompleted: restoreConfig()
 
+    // Someone asked for the verified proxy to be operated, and the shell has already
+    // brought us forward — arriving IS the whole request, so answer at once rather than
+    // waiting for the operator to press anything. `handoff: true` is what keeps them here
+    // afterwards instead of bouncing them back to whoever asked.
+    //
+    // Guarded like `d.backend` above: this view is also loaded by a bare `qml` runtime in
+    // CI, where `logos` does not exist at all.
+    Connections {
+        target: (typeof logos !== "undefined") ? logos : null
+        function onIntentRequested(requestId, intent, params, requesterName) {
+            if (intent !== "evm.verified_routing.operate") return
+            logView.append("opened by " + requesterName)
+            logos.respond(requestId, true, ({}), "")
+        }
+    }
+
     Connections {
         target: d.backend
         // Deliberately no logging here. The backend already emits a logLine for
