@@ -5656,11 +5656,11 @@
         "nixpkgs-windows": "nixpkgs-windows_148"
       },
       "locked": {
-        "lastModified": 1786729772,
-        "narHash": "sha256-7qE/hchFHmaCxoFCI4dtCqv2eHyL6VttgedTas41Lgs=",
+        "lastModified": 1789006373,
+        "narHash": "sha256-XMsTZhPheGAX+hPd1InIfFwSm8lzdTo3cKC4l2J6Pf0=",
         "owner": "logos-co",
         "repo": "logos-nix",
-        "rev": "f55bf91b8a723ee5c27c39c773b034255538d280",
+        "rev": "2ab5416a1fb92d6fa3f0dee9a57500df614c4b5d",
         "type": "github"
       },
       "original": {
@@ -11437,18 +11437,18 @@
         "nixpkgs": "nixpkgs_163"
       },
       "locked": {
-        "lastModified": 1785300199,
+        "lastModified": 1788987835,
         "lfs": false,
-        "narHash": "sha256-y3msabM1TJzj7gWHHBPUKBhwSWAzgosQksNec243Bgs=",
-        "ref": "refs/tags/v0.4.0",
-        "rev": "2ed512525a955d4f6c5f977eae4ea761b770d58a",
-        "revCount": 5503,
+        "narHash": "sha256-N/v7BFNGjJAgOf3xELM1N4xVYN7FDs7awY2kiPMm3X8=",
+        "ref": "refs/heads/master",
+        "rev": "bd2cd354dd4729269a59da33e5278cf136fe7222",
+        "revCount": 5633,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/status-im/nimbus-eth1"
       },
       "original": {
-        "ref": "refs/tags/v0.4.0",
+        "rev": "bd2cd354dd4729269a59da33e5278cf136fe7222",
         "submodules": true,
         "type": "git",
         "url": "https://github.com/status-im/nimbus-eth1"
@@ -18301,11 +18301,11 @@
         "nimbus-eth1": "nimbus-eth1"
       },
       "locked": {
-        "lastModified": 1788461543,
-        "narHash": "sha256-hqx4l+ooT9yf2h71nm/gbH1XTK8JZOOr4CjbunDbha0=",
+        "lastModified": 1789010913,
+        "narHash": "sha256-WVBOcMAbHeceYBofzJO+uSLw4Rd73fgDiO7GxM9G8Pc=",
         "owner": "logos-co",
         "repo": "logos-verified-proxy-module",
-        "rev": "53a619417603e311efdee464df729e0e1a6cc3bc",
+        "rev": "8576a583a659b0cc2ea6a9df7850df6c3f4258da",
         "type": "github"
       },
       "original": {
