@@ -10,7 +10,9 @@
   "main": "verified_proxy_ui_plugin",
   "icon": "src/icons/verified-proxy.png",
   "view": "qml/Main.qml",
-  "dependencies": ["verified_proxy_module"],
+  "dependencies": [
+    { "name": "verified_proxy_module", "version": "~0.1.0" }
+  ],
   "provides": [
     { "intent": "evm.verified_routing.operate", "handoff": true }
   ],
