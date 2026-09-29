@@ -47,8 +47,11 @@ goes *backwards* (measured: −39 blocks over a 5-minute idle).
 ## Using it
 
 Set the beacon and execution URLs, press **Fetch finalized** to pull a trusted
-block root, then **Configure** → **Start**. The panel shows state, chain id and
-head block, with the raw `status()` payload behind a toggle.
+block root, then press **Start**. The panel shows state, chain id, head block,
+and the time since that head was verified, with the raw `status()` payload behind
+a toggle. When a running proxy has no head after 30 seconds, its head is over
+60 seconds old, or keep-alive is off, the panel shows a warning consistent with
+the verified-routing gate used by Wallet and Uniswap.
 
 The execution provider must support `eth_getProof`, and state-reading calls
 (`eth_getBalance`, `eth_getCode`) additionally need a provider whose proof
