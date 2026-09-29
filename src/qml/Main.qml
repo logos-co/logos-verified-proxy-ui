@@ -65,6 +65,27 @@ Rectangle {
         // that silently does not take effect.
         readonly property bool locked: ready && (backend.busy || backend.running)
 
+        // Wallet and Uniswap require a recently verified head, not merely a
+        // running proxy. Compare timestamps from one status snapshot so local
+        // clock skew cannot create a false stale-head warning.
+        readonly property var status: {
+            if (!ready || !backend.statusJson) return ({})
+            try { return JSON.parse(backend.statusJson) } catch (e) { return ({}) }
+        }
+        readonly property int headAgeSeconds: {
+            var s = status
+            var updated = s.head && s.head.updatedAt
+            if (!updated || !s.startedAt) return -1
+            return Math.max(0, s.startedAt + s.uptimeSeconds - updated)
+        }
+        readonly property bool headMissing: ready && backend.state === "running"
+            && backend.headBlock === "" && status.uptimeSeconds >= 30
+        readonly property bool headStale: ready && backend.state === "running"
+            && backend.headBlock !== "" && headAgeSeconds > 60
+        readonly property bool keepAliveOff: ready && backend.state === "running"
+            && status.keepAlive === "off"
+        readonly property bool notTracking: headMissing || headStale || keepAliveOff
+
         function profileFor(name) {
             for (var i = 0; i < networks.length; ++i)
                 if (networks[i].name === name) return networks[i]
@@ -207,8 +228,9 @@ Rectangle {
                     font.weight: Theme.typography.weightBold
                 }
                 LogosBadge {
-                    text: d.ready ? d.backend.state : "no module"
-                    color: d.stateColour(d.ready ? d.backend.state : "unavailable")
+                    text: d.ready ? (d.notTracking ? "not tracking" : d.backend.state) : "no module"
+                    color: d.notTracking ? Theme.palette.warning
+                        : d.stateColour(d.ready ? d.backend.state : "unavailable")
                 }
                 Item { Layout.fillWidth: true }
                 LogosSpinner {
@@ -471,26 +493,43 @@ Rectangle {
                         LogosText {
                             text: "chain " + (d.ready ? d.backend.chainId : 0)
                                   + "   head " + (d.ready && d.backend.headBlock !== "" ? d.backend.headBlock : "—")
-                            color: Theme.palette.textTertiary
+                                  + (d.headAgeSeconds >= 0 ? "   checked " + d.headAgeSeconds + "s ago" : "")
+                            color: d.notTracking ? Theme.palette.warning : Theme.palette.textTertiary
                             font.pixelSize: Theme.typography.secondaryText
                         }
                     }
 
-                    LogosButton {
-                        text: rawJson.visible ? "Hide raw status" : "Show raw status"
-                        trailingIcon.source: rawJson.visible ? LogosIcons.triangleUp : LogosIcons.triangleDown
-                        onClicked: rawJson.visible = !rawJson.visible
+                    LogosText {
+                        visible: d.notTracking
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: d.keepAliveOff
+                            ? "Keep-alive is off. Wallet and Uniswap cannot use verified routing until it is enabled."
+                            : d.headMissing
+                                ? "The proxy is running but has not verified a head yet. Wallet and Uniswap are waiting for it."
+                                : "The verified head has not refreshed for over 60 seconds. Wallet and Uniswap are blocking verified reads."
+                        color: Theme.palette.warning
+                        font.pixelSize: Theme.typography.secondaryText
                     }
-                    LogosTextArea {
-                        id: rawJson
+
+                    LogosButton {
+                        text: rawStatusScroll.visible ? "Hide raw status" : "Show raw status"
+                        trailingIcon.source: rawStatusScroll.visible ? LogosIcons.triangleUp : LogosIcons.triangleDown
+                        onClicked: rawStatusScroll.visible = !rawStatusScroll.visible
+                    }
+                    LogosScrollView {
+                        id: rawStatusScroll
                         visible: false
                         Layout.fillWidth: true
-                        implicitHeight: 200
-                        readOnly: true
-                        font.family: Theme.typography.mono
-                        font.pixelSize: Theme.typography.secondaryText
-                        color: Theme.palette.textTertiary
-                        text: d.ready ? d.backend.statusJson : ""
+                        Layout.preferredHeight: 200
+
+                        LogosTextArea {
+                            readOnly: true
+                            font.family: Theme.typography.mono
+                            font.pixelSize: Theme.typography.secondaryText
+                            color: Theme.palette.textTertiary
+                            text: d.ready ? d.backend.statusJson : ""
+                        }
                     }
                 }
             }
