@@ -93,7 +93,7 @@ Rectangle {
                                             && status.beacon.source === "module") ? (status.beacon.urls || []) : []
 
         function profileFor(name) {
-            for (var i = 0; i < networks.length; ++i)
+            for (let i = 0; i < networks.length; ++i)
                 if (networks[i].name === name) return networks[i]
             return null
         }
@@ -138,7 +138,7 @@ Rectangle {
     // value, obtain the root independently and paste it in.
     function fetchFinalizedRoot() {
         if (d.beaconFromModule) {
-            var p = d.profileFor(networkBox.currentText)
+            const p = d.profileFor(networkBox.currentText)
             if (!p) { logView.append("no chain id for " + networkBox.currentText); return }
             d.backend.fetchFinalizedRootFromModule(p.chainId)
             return
@@ -175,7 +175,7 @@ Rectangle {
         if (c.executionApiUrls && c.executionApiUrls.length) execField.text = c.executionApiUrls[0]
         if (c.trustedBlockRoot) rootField.text = c.trustedBlockRoot
         if (c.keepAlive) {
-            var k = ["interval", "continuous", "off"].indexOf(c.keepAlive)
+            const k = ["interval", "continuous", "off"].indexOf(c.keepAlive)
             if (k >= 0) keepAliveBox.currentIndex = k
         }
         if (c.httpServer) {
