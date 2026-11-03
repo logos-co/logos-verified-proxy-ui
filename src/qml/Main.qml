@@ -78,13 +78,33 @@ Rectangle {
             if (!updated || !s.startedAt) return -1
             return Math.max(0, s.startedAt + s.uptimeSeconds - updated)
         }
-        readonly property bool headMissing: ready && backend.state === "running"
+        // backend.running covers "degraded" too, which is when these matter most.
+        readonly property bool headMissing: ready && backend.running
             && backend.headBlock === "" && status.uptimeSeconds >= 30
-        readonly property bool headStale: ready && backend.state === "running"
+        readonly property bool headStale: ready && backend.running
             && backend.headBlock !== "" && headAgeSeconds > 60
-        readonly property bool keepAliveOff: ready && backend.state === "running"
+        readonly property bool keepAliveOff: ready && backend.running
             && status.keepAlive === "off"
         readonly property bool notTracking: headMissing || headStale || keepAliveOff
+
+        // The module's own reason. status().lastError is never cleared on recovery,
+        // so it only counts while the state is still bad.
+        readonly property string syncError: status.sync && status.sync.consecutiveFailures > 0
+            ? (status.sync.lastError || "") : ""
+        readonly property string stateError: ready && status.lastError
+            && (backend.state === "degraded" || backend.state === "error")
+            && status.lastError !== syncError && status.lastError !== backend.lastError
+            ? status.lastError : ""
+        readonly property string healthReason: {
+            const lines = []
+            if (stateError !== "") {
+                const hb = status.counters ? status.counters.heartbeatFailures : 0
+                lines.push(stateError + (hb > 0 ? "  (" + hb + " failed heartbeats)" : ""))
+            }
+            if (syncError !== "")
+                lines.push("Sync failed " + status.sync.consecutiveFailures + "× in a row: " + syncError)
+            return lines.join("\n")
+        }
 
         // beaconSource "module": the proxy reads the providers enabled in
         // beacon_api_module at start; "urls": the one typed in beaconField.
@@ -555,6 +575,15 @@ Rectangle {
                             : d.headMissing
                                 ? "The proxy is running but has not verified a head yet. Wallet and Uniswap are waiting for it."
                                 : "The verified head has not refreshed for over 60 seconds. Wallet and Uniswap are blocking verified reads."
+                        color: Theme.palette.warning
+                        font.pixelSize: Theme.typography.secondaryText
+                    }
+
+                    LogosText {
+                        visible: d.healthReason !== ""
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: d.healthReason
                         color: Theme.palette.warning
                         font.pixelSize: Theme.typography.secondaryText
                     }
