@@ -61,6 +61,9 @@ class VerifiedProxyBackend
     // the view is refused outright ("sandboxed ui_qml modules may not use the
     // network"). A core module has no such restriction.
     SLOT(void fetchFinalizedRoot(QString beaconUrl))
+    // The same, from beacon_api_module's https providers for `chainId`: what
+    // the proxy uses when its beaconSource is "module".
+    SLOT(void fetchFinalizedRootFromModule(int chainId))
 
     // ── Calls ───────────────────────────────────────────────────────────
     // `paramsJson` is a JSON array, matching the module's rpc(method, params).

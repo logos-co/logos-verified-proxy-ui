@@ -86,8 +86,14 @@ Rectangle {
             && status.keepAlive === "off"
         readonly property bool notTracking: headMissing || headStale || keepAliveOff
 
+        // beaconSource "module": the proxy reads the providers enabled in
+        // beacon_api_module at start; "urls": the one typed in beaconField.
+        readonly property bool beaconFromModule: beaconSourceBox.currentIndex === 0
+        readonly property var beaconInUse: (ready && backend.running && status.beacon
+                                            && status.beacon.source === "module") ? (status.beacon.urls || []) : []
+
         function profileFor(name) {
-            for (var i = 0; i < networks.length; ++i)
+            for (let i = 0; i < networks.length; ++i)
                 if (networks[i].name === name) return networks[i]
             return null
         }
@@ -107,10 +113,11 @@ Rectangle {
             "network": networkBox.currentText,
             "trustedBlockRoot": rootField.text.trim(),
             "executionApiUrls": [ execField.text.trim() ],
-            "beaconApiUrls": [ beaconField.text.trim() ],
+            "beaconSource": d.beaconFromModule ? "module" : "urls",
             "keepAlive": keepAliveBox.currentText,
             "logLevel": "INFO"
         }
+        if (!d.beaconFromModule) cfg["beaconApiUrls"] = [ beaconField.text.trim() ]
         if (httpEnabled.checked) {
             cfg["httpServer"] = {
                 "enabled": true,
@@ -130,6 +137,12 @@ Rectangle {
     // same endpoint being verified proves nothing. For anything holding real
     // value, obtain the root independently and paste it in.
     function fetchFinalizedRoot() {
+        if (d.beaconFromModule) {
+            const p = d.profileFor(networkBox.currentText)
+            if (!p) { logView.append("no chain id for " + networkBox.currentText); return }
+            d.backend.fetchFinalizedRootFromModule(p.chainId)
+            return
+        }
         var base = beaconField.text.trim()
         if (!base) { logView.append("beacon URL is empty"); return }
         d.backend.fetchFinalizedRoot(base)
@@ -157,11 +170,12 @@ Rectangle {
             networkBox.appliedNetwork = c.network
             networkBox.currentIndex = idx
         }
+        beaconSourceBox.currentIndex = c.beaconSource === "urls" ? 1 : 0
         if (c.beaconApiUrls && c.beaconApiUrls.length)    beaconField.text = c.beaconApiUrls[0]
         if (c.executionApiUrls && c.executionApiUrls.length) execField.text = c.executionApiUrls[0]
         if (c.trustedBlockRoot) rootField.text = c.trustedBlockRoot
         if (c.keepAlive) {
-            var k = ["interval", "continuous", "off"].indexOf(c.keepAlive)
+            const k = ["interval", "continuous", "off"].indexOf(c.keepAlive)
             if (k >= 0) keepAliveBox.currentIndex = k
         }
         if (c.httpServer) {
@@ -327,14 +341,46 @@ Rectangle {
                         }
 
                         LogosText { text: "Beacon API"; color: Theme.palette.textTertiary }
-                        ConfigField {
-                            id: beaconField
+                        RowLayout {
                             Layout.fillWidth: true
-                            enabled: !d.locked
-                            // No hardcoded default: it comes from the module's
-                            // network table, which is where the verified pairs
-                            // live.
-                            placeholderText: "https://…  (must serve the light-client REST API)"
+                            spacing: Theme.spacing.small
+                            LogosComboBox {
+                                id: beaconSourceBox
+                                Layout.preferredWidth: 200
+                                enabled: !d.locked
+                                // Index 0 is d.beaconFromModule.
+                                model: ["beacon_api_module", "custom URL"]
+                            }
+                            ConfigField {
+                                id: beaconField
+                                visible: !d.beaconFromModule
+                                Layout.fillWidth: true
+                                enabled: !d.locked
+                                // No hardcoded default: it comes from the module's
+                                // network table, which is where the verified pairs
+                                // live.
+                                placeholderText: "https://…  (must serve the light-client REST API)"
+                            }
+                            LogosText {
+                                visible: d.beaconFromModule
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                text: d.beaconInUse.length ? "in use: " + d.beaconInUse.join(", ")
+                                                           : "the providers enabled there for this chain, read at Start"
+                                color: Theme.palette.textTertiary
+                                font.pixelSize: Theme.typography.secondaryText
+                            }
+                        }
+
+                        Item { visible: d.beaconFromModule; implicitWidth: 1; implicitHeight: 1 }
+                        LogosText {
+                            visible: d.beaconFromModule
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: "The proxy fetches from them itself, so that module's failover and proxy "
+                                  + "do not apply here, and Start is refused for a chain it sends through a proxy."
+                            color: Theme.palette.textTertiary
+                            font.pixelSize: Theme.typography.secondaryText
                         }
 
                         LogosText { text: "Execution API"; color: Theme.palette.textTertiary }
@@ -423,7 +469,8 @@ Rectangle {
                             variant: LogosButton.Variant.Primary
                             enabled: d.ready && !d.backend.busy && !d.backend.running
                                      && rootField.text.trim() !== ""
-                                     && beaconField.text.trim() !== "" && execField.text.trim() !== ""
+                                     && (d.beaconFromModule || beaconField.text.trim() !== "")
+                                     && execField.text.trim() !== ""
                             onClicked: d.backend.applyAndStart(root.buildConfig())
                         }
                         LogosButton {

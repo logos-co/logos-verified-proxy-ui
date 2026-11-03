@@ -39,6 +39,7 @@ public:
     void stop() override;
     void refreshStatus() override;
     void fetchFinalizedRoot(QString beaconUrl) override;
+    void fetchFinalizedRootFromModule(int chainId) override;
     void callRpc(QString method, QString paramsJson) override;
 
 protected:
