@@ -20,6 +20,61 @@
         "type": "github"
       }
     },
+    "beacon_api_module_2": {
+      "inputs": {
+        "logos-module-builder": [
+          "verified_proxy_module",
+          "logos-module-builder"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793665602,
+        "narHash": "sha256-Sh6zEWYkKwoWtmpZcZo9TjtjEOt1Taesux8HMPB0Wi0=",
+        "owner": "logos-co",
+        "repo": "logos-evm-beacon-api-module",
+        "rev": "18c2a731c4f788d30b08104cd9a17fad7662c757",
+        "type": "github"
+      },
+      "original": {
+        "owner": "logos-co",
+        "repo": "logos-evm-beacon-api-module",
+        "type": "github"
+      }
+    },
+    "checksums": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1775198586,
+        "narHash": "sha256-EwGpWSzWeEt8KLracRUle8KFb/2c6Ndz1Sqm3FhBvRY=",
+        "owner": "nim-lang",
+        "repo": "checksums",
+        "rev": "5c132cd332cce5d64a0da9ac3e4c9664313dccb4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nim-lang",
+        "repo": "checksums",
+        "rev": "5c132cd332cce5d64a0da9ac3e4c9664313dccb4",
+        "type": "github"
+      }
+    },
+    "csources": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1762688095,
+        "narHash": "sha256-pTcm2y+HDOuTol8DyoJMOMHsUA6QrgwGdfcOu1NX4PU=",
+        "owner": "nim-lang",
+        "repo": "csources_v3",
+        "rev": "eeab3ac46e93f10efda8e58c4db02b9438319d71",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nim-lang",
+        "repo": "csources_v3",
+        "rev": "eeab3ac46e93f10efda8e58c4db02b9438319d71",
+        "type": "github"
+      }
+    },
     "default-container": {
       "inputs": {
         "logos-container": "logos-container",
@@ -11451,24 +11506,44 @@
         "type": "github"
       }
     },
+    "nimble": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1774433142,
+        "narHash": "sha256-d9Ezmmz6QKPgx/21u/aUBx7GgXaJzDuFu/gxtj6OVE8=",
+        "ref": "refs/heads/master",
+        "rev": "42ef70c2102a942c46f13eb76872326edd525cec",
+        "shallow": true,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/nim-lang/nimble"
+      },
+      "original": {
+        "rev": "42ef70c2102a942c46f13eb76872326edd525cec",
+        "shallow": true,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/nim-lang/nimble"
+      }
+    },
     "nimbus-eth1": {
       "inputs": {
         "nimbusBuildSystem": "nimbusBuildSystem",
         "nixpkgs": "nixpkgs_163"
       },
       "locked": {
-        "lastModified": 1788987835,
+        "lastModified": 1792837445,
         "lfs": false,
-        "narHash": "sha256-N/v7BFNGjJAgOf3xELM1N4xVYN7FDs7awY2kiPMm3X8=",
-        "ref": "refs/heads/master",
-        "rev": "bd2cd354dd4729269a59da33e5278cf136fe7222",
-        "revCount": 5633,
+        "narHash": "sha256-B3JhJPp1cNkFqOwFb++v4fAWaJRBtmsO48Gct2KMU9s=",
+        "ref": "refs/tags/v0.4.4",
+        "rev": "721918411e26d0a73f33d69d4967be9b84bccf59",
+        "revCount": 5868,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/status-im/nimbus-eth1"
       },
       "original": {
-        "rev": "bd2cd354dd4729269a59da33e5278cf136fe7222",
+        "ref": "refs/tags/v0.4.4",
         "submodules": true,
         "type": "git",
         "url": "https://github.com/status-im/nimbus-eth1"
@@ -11476,6 +11551,9 @@
     },
     "nimbusBuildSystem": {
       "inputs": {
+        "checksums": "checksums",
+        "csources": "csources",
+        "nimble": "nimble",
         "nixpkgs": [
           "verified_proxy_module",
           "nimbus-eth1",
@@ -11483,17 +11561,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1780314388,
-        "narHash": "sha256-YA4zuAAIEPkIyCenc6Z58rS2J2Ih2IB1m1o//nBr7Kw=",
+        "lastModified": 1791444235,
+        "narHash": "sha256-dzJcihXKr7CochppADFHUpFUxPsKtQ6LA4PMJwW0XU0=",
         "ref": "refs/heads/master",
-        "rev": "74985931a6bf4c774655308eafde449696c6a32e",
-        "revCount": 253,
+        "rev": "a46d8b5e3c30a8a822225e9a81c19e63d159c2b2",
+        "revCount": 260,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/status-im/nimbus-build-system"
       },
       "original": {
-        "submodules": true,
         "type": "git",
         "url": "https://github.com/status-im/nimbus-build-system"
       }
@@ -18315,6 +18392,7 @@
     },
     "verified_proxy_module": {
       "inputs": {
+        "beacon_api_module": "beacon_api_module_2",
         "logos-module-builder": [
           "logos-module-builder"
         ],
@@ -18322,11 +18400,11 @@
         "nimbus-eth1": "nimbus-eth1"
       },
       "locked": {
-        "lastModified": 1789010913,
-        "narHash": "sha256-WVBOcMAbHeceYBofzJO+uSLw4Rd73fgDiO7GxM9G8Pc=",
+        "lastModified": 1793720401,
+        "narHash": "sha256-jPMvqwQf53LkUzjj+E1WFOYcdFqCO5p109urZAA2/kI=",
         "owner": "logos-co",
         "repo": "logos-verified-proxy-module",
-        "rev": "8576a583a659b0cc2ea6a9df7850df6c3f4258da",
+        "rev": "d2eec5fb5c7811319310354c22b7196c0456cb43",
         "type": "github"
       },
       "original": {
