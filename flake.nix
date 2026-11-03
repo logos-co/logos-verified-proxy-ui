@@ -10,6 +10,11 @@
       url = "github:logos-co/logos-verified-proxy-module";
       inputs.logos-module-builder.follows = "logos-module-builder";
     };
+    # Where "Fetch finalized" asks in beacon-module mode.
+    beacon_api_module = {
+      url = "github:logos-co/logos-evm-beacon-api-module";
+      inputs.logos-module-builder.follows = "logos-module-builder";
+    };
   };
 
   outputs = inputs@{ logos-module-builder, ... }:

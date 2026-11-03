@@ -264,6 +264,37 @@ void VerifiedProxyBackend::fetchFinalizedRoot(QString beaconUrl) {
         Timeout(kCallTimeoutMs));
 }
 
+void VerifiedProxyBackend::fetchFinalizedRootFromModule(int chainId) {
+    if (!m_logos) return;
+
+    log(QStringLiteral("fetching finalized root from beacon_api_module (chain %1)").arg(chainId));
+    // On a fresh install nothing has seeded the module's defaults yet; it only
+    // fills chains that are absent, so asking every time is harmless.
+    m_logos->beacon_api_module.init_defaultsAsyncResult(
+        [this, chainId](logos::AsyncResult<QString>) {
+            m_logos->beacon_api_module.finalized_headerAsyncResult(
+                chainId,
+                [this](logos::AsyncResult<QString> r) {
+                    // {ok, root, slot, provider} or {ok: false, error}.
+                    const QJsonObject a = r.ok() ? QJsonDocument::fromJson(r.value.toUtf8()).object() : QJsonObject{};
+                    if (!a.value(QStringLiteral("ok")).toBool()) {
+                        const QString e = !r.ok() ? describe(r.error)
+                            : a.value(QStringLiteral("error")).toString(QStringLiteral("malformed answer"));
+                        emit finalizedRootFetched(false, {}, e);
+                        log(QStringLiteral("error: ") + e);
+                        return;
+                    }
+                    const QString root = a.value(QStringLiteral("root")).toString();
+                    emit finalizedRootFetched(true, root, {});
+                    log(QStringLiteral("finalized root ") + root
+                        + QStringLiteral(" (slot ") + a.value(QStringLiteral("slot")).toString()
+                        + QStringLiteral(", ") + a.value(QStringLiteral("provider")).toString() + QLatin1Char(')'));
+                },
+                Timeout(kCallTimeoutMs));
+        },
+        Timeout(kCallTimeoutMs));
+}
+
 void VerifiedProxyBackend::callRpc(QString method, QString paramsJson) {
     if (!m_logos) return;
 
