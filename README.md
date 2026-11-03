@@ -46,8 +46,12 @@ goes *backwards* (measured: −39 blocks over a 5-minute idle).
 
 ## Using it
 
-Set the beacon and execution URLs, press **Fetch finalized** to pull a trusted
-block root, then press **Start**. The panel shows state, chain id, head block,
+Pick where the beacon (light-client) data comes from: **beacon_api_module**, the
+default, uses the providers enabled there for the chain, read when the proxy
+starts and shown while it runs; **custom URL** uses the one URL you type. Set the
+execution URL, press **Fetch finalized** to pull a trusted block root (from
+beacon_api_module's https providers, or from the custom URL), then press
+**Start**. The panel shows state, chain id, head block,
 and the time since that head was verified, with the raw `status()` payload behind
 a toggle. When a running proxy has no head after 30 seconds, its head is over
 60 seconds old, or keep-alive is off, the panel shows a warning consistent with
