@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793665602,
-        "narHash": "sha256-Sh6zEWYkKwoWtmpZcZo9TjtjEOt1Taesux8HMPB0Wi0=",
+        "lastModified": 1793890771,
+        "narHash": "sha256-GJXHmtaHbQ9qsEjRAlKYeK3g0HuDrA6QjLUBPa7B48Q=",
         "owner": "logos-co",
         "repo": "logos-evm-beacon-api-module",
-        "rev": "18c2a731c4f788d30b08104cd9a17fad7662c757",
+        "rev": "aca138e5c211a370654700f4f8f2779ea5081c86",
         "type": "github"
       },
       "original": {
@@ -28,11 +28,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793665602,
-        "narHash": "sha256-Sh6zEWYkKwoWtmpZcZo9TjtjEOt1Taesux8HMPB0Wi0=",
+        "lastModified": 1793890771,
+        "narHash": "sha256-GJXHmtaHbQ9qsEjRAlKYeK3g0HuDrA6QjLUBPa7B48Q=",
         "owner": "logos-co",
         "repo": "logos-evm-beacon-api-module",
-        "rev": "18c2a731c4f788d30b08104cd9a17fad7662c757",
+        "rev": "aca138e5c211a370654700f4f8f2779ea5081c86",
         "type": "github"
       },
       "original": {
@@ -18400,11 +18400,11 @@
         "nimbus-eth1": "nimbus-eth1"
       },
       "locked": {
-        "lastModified": 1793720401,
-        "narHash": "sha256-jPMvqwQf53LkUzjj+E1WFOYcdFqCO5p109urZAA2/kI=",
+        "lastModified": 1793893111,
+        "narHash": "sha256-TAOjkfu/2GiTa1a/JUsLzQHcz916Po7Dn8fQPsghYjM=",
         "owner": "logos-co",
         "repo": "logos-verified-proxy-module",
-        "rev": "d2eec5fb5c7811319310354c22b7196c0456cb43",
+        "rev": "fa984790c5c5d7b39f37ed42d7b66abfc9e72b67",
         "type": "github"
       },
       "original": {
