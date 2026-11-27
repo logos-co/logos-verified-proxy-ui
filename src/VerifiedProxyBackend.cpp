@@ -195,7 +195,7 @@ void VerifiedProxyBackend::applyAndStart(QString configJson) {
 }
 
 void VerifiedProxyBackend::startAfterConfigure() {
-    log(QStringLiteral("starting — the light client must bootstrap, this can take a while"));
+    log(QStringLiteral("starting — the light client resumes from its saved checkpoint or bootstraps, this can take a while"));
 
     // ASYNC deliberately: start() blocks in the module until the light client
     // initialises (up to its startTimeoutMs, 120s by default). Calling it

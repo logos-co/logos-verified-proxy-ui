@@ -55,7 +55,9 @@ beacon_api_module's https providers, or from the custom URL), then press
 and the time since that head was verified, with the raw `status()` payload behind
 a toggle. When a running proxy has no head after 30 seconds, its head is over
 60 seconds old, or keep-alive is off, the panel shows a warning consistent with
-the verified-routing gate used by Wallet and Uniswap.
+the verified-routing gate used by Wallet and Uniswap. It also warns when the
+module could not save the light-client checkpoint, since a restart then
+bootstraps from the trusted root again.
 
 The execution provider must support `eth_getProof`, and state-reading calls
 (`eth_getBalance`, `eth_getCode`) additionally need a provider whose proof

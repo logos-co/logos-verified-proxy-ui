@@ -106,6 +106,11 @@ Rectangle {
             return lines.join("\n")
         }
 
+        // The module keeps the light client's checkpoint so a restart skips the
+        // bootstrap. The error clears on the next save that works.
+        readonly property string checkpointError: ready && status.checkpoint
+            ? (status.checkpoint.lastError || "") : ""
+
         // beaconSource "module": the proxy reads the providers enabled in
         // beacon_api_module at start; "urls": the one typed in beaconField.
         readonly property bool beaconFromModule: beaconSourceBox.currentIndex === 0
@@ -584,6 +589,16 @@ Rectangle {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         text: d.healthReason
+                        color: Theme.palette.warning
+                        font.pixelSize: Theme.typography.secondaryText
+                    }
+
+                    LogosText {
+                        visible: d.checkpointError !== ""
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        text: "Could not save the light-client checkpoint, so a restart will bootstrap "
+                              + "from the trusted root again: " + d.checkpointError
                         color: Theme.palette.warning
                         font.pixelSize: Theme.typography.secondaryText
                     }
